@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LagClear</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <img class="logo" src="../icons/icon48.png" alt="LagClear" width="34" height="34">
+      <div class="head-text">
+        <div class="title">LagClear</div>
+        <div class="subtitle">Long-chat de-lagger</div>
+      </div>
+    </header>
+
+    <section class="status" id="statusCard">
+      <div class="status-main">
+        <span class="dot" id="dot"></span>
+        <span class="status-text" id="statusText">Checking…</span>
+      </div>
+      <div class="stat" id="stat"></div>
+      <div class="site-line" id="siteLine"></div>
+    </section>
+
+    <section class="controls">
+      <div class="row">
+        <div class="row-label">
+          <div class="row-title">Enabled</div>
+          <div class="row-desc">Master switch for every site</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="enabled">
+          <span class="track"></span>
+        </label>
+      </div>
+
+      <div class="row">
+        <div class="row-label">
+          <div class="row-title">This site</div>
+          <div class="row-desc" id="siteDesc">Run on the current site</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="thisSite">
+          <span class="track"></span>
+        </label>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="row">
+        <div class="row-label">
+          <div class="row-title">Lazy-load media</div>
+          <div class="row-desc">Defer off-screen images</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="lazyMedia">
+          <span class="track"></span>
+        </label>
+      </div>
+
+      <div class="row">
+        <div class="row-label">
+          <div class="row-title">Reduce animations &amp; blur</div>
+          <div class="row-desc">Cuts CSS animations, transitions, backdrop-blur</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="reduceAnimations">
+          <span class="track"></span>
+        </label>
+      </div>
+
+      <div class="mode-row">
+        <div class="row-label">
+          <div class="row-title">Mode</div>
+          <div class="row-desc" id="modeDesc">CPU: smooth &amp; safe. RAM: frees memory (experimental).</div>
+        </div>
+        <div class="seg" id="seg">
+          <button type="button" data-mode="cpu" class="seg-btn">Save CPU</button>
+          <button type="button" data-mode="ram" class="seg-btn">Save RAM</button>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      Virtualizes off-screen messages with <code>content-visibility</code>.
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

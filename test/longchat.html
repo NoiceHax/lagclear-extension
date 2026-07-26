@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LagClear test - 2,500-message chat</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 15px/1.55 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f3f4f6; color: #14161a;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #131417; color: #e9eaec; }
+    .msg.assistant .bubble { background: #22242a; }
+    .msg.user .bubble { background: #2b3550; }
+    pre { background: #0e0f12 !important; color: #d6d9de; }
+    header { background: #1b1d22; border-color: #2a2d33; }
+    .banner.off { background: #4a2323; color: #ffd7d7; }
+    .banner.on { background: #123322; color: #b9f5d3; }
+    .composer { background: #1b1d22; border-color: #2a2d33; }
+    .composer textarea { border-color: #3a3d43; }
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    padding: 10px 14px; background: #fff; border-bottom: 1px solid #e4e6ea;
+  }
+  header h1 { font-size: 15px; margin: 0 8px 0 0; }
+  button {
+    font: inherit; font-size: 13px; padding: 6px 11px; border-radius: 8px;
+    border: 1px solid #cbd0d8; background: #fff; cursor: pointer; color: inherit;
+  }
+  button:hover { border-color: #6c4cff; }
+  .meter { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .meter b { font-size: 15px; }
+  .banner { padding: 8px 14px; font-size: 13px; font-weight: 600; }
+  .banner.on { background: #e5f8ee; color: #0a7a44; }
+  .banner.off { background: #fdecec; color: #b42318; }
+
+  /* The scroll container the generic detector should latch onto:
+     scrollable, tall, with many same-tag children and lots of text. */
+  #chat {
+    height: calc(100vh - 150px);
+    overflow-y: auto;
+    padding: 18px 0 40px;
+    scroll-behavior: smooth;
+  }
+  /* A message composer - chat apps have one, and LagClear now requires it
+     before activating via the generic heuristic (so it ignores comment/feed
+     lists on non-chat sites like YouTube). */
+  .composer { position: sticky; bottom: 0; padding: 10px 16px; background: #fff; border-top: 1px solid #e4e6ea; }
+  .composer textarea {
+    width: 100%; min-height: 42px; max-height: 140px; padding: 10px 12px;
+    border-radius: 10px; border: 1px solid #cbd0d8; font: inherit; resize: vertical;
+    background: transparent; color: inherit;
+  }
+  .msg { display: flex; padding: 6px 16px; }
+  .msg.user { justify-content: flex-end; }
+  .bubble {
+    max-width: 760px; width: fit-content;
+    padding: 12px 15px; border-radius: 14px;
+    background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  }
+  .msg.user .bubble { background: #dbe4ff; }
+  .role { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; opacity: .55; margin-bottom: 4px; }
+  pre {
+    background: #0f1117; color: #d6d9de; border-radius: 9px;
+    padding: 11px 13px; overflow-x: auto; font-size: 12.5px; line-height: 1.5;
+    margin: 9px 0 0;
+  }
+  .shot {
+    width: 100%; max-width: 520px; height: 130px; border-radius: 10px; margin-top: 9px;
+    background: conic-gradient(from 210deg, #6c4cff, #b07cff, #4cc9ff, #6c4cff);
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>⚡ LagClear test</h1>
+    <button id="top">↑ Top</button>
+    <button id="bottom">↓ Bottom</button>
+    <button id="more">+500 messages</button>
+    <button id="stress">Stress scroll</button>
+    <span class="meter">FPS: <b id="fps">-</b> · Msgs: <b id="count">0</b> · DOM: <b id="nodes">0</b></span>
+  </header>
+  <div class="banner off" id="banner">LagClear: checking…</div>
+  <div id="chat" aria-label="conversation"></div>
+  <div class="composer"><textarea placeholder="Send a message…" rows="1"></textarea></div>
+
+<script>
+(function () {
+  var chat = document.getElementById('chat');
+  var CODE = [
+    'function debounce(fn, ms) {',
+    '  let t;',
+    '  return function (...args) {',
+    '    clearTimeout(t);',
+    '    t = setTimeout(() => fn.apply(this, args), ms);',
+    '  };',
+    '}',
+    '',
+    '// off-screen work the browser must lay out & paint',
+    'const rows = data.map((d, i) => renderRow(d, i));',
+    'container.replaceChildren(...rows);'
+  ].join('\n');
+
+  var LOREM = 'This is a synthetic conversation turn used to stress the renderer. ' +
+    'Real chats accumulate hundreds of these, each with markdown, code, and images, ' +
+    'until every scroll and keystroke forces layout across thousands of nodes. ';
+
+  function makeMessages(startId, n) {
+    var html = [];
+    for (var i = 0; i < n; i++) {
+      var id = startId + i;
+      var isUser = (id % 2) === 0;
+      if (isUser) {
+        html.push(
+          '<div class="msg user"><div class="bubble"><div class="role">You</div>' +
+          'Message #' + id + ' - ' + LOREM.slice(0, 90) + '</div></div>'
+        );
+      } else {
+        var img = (id % 5 === 0) ? '<div class="shot"></div>' : '';
+        html.push(
+          '<div class="msg assistant"><div class="bubble"><div class="role">Assistant</div>' +
+          'Response #' + id + '. ' + LOREM + LOREM +
+          '<pre>' + CODE + '</pre>' + img + '</div></div>'
+        );
+      }
+    }
+    return html.join('');
+  }
+
+  var total = 0;
+  function append(n) {
+    chat.insertAdjacentHTML('beforeend', makeMessages(total, n));
+    total += n;
+    document.getElementById('count').textContent = total.toLocaleString();
+    document.getElementById('nodes').textContent =
+      document.getElementsByTagName('*').length.toLocaleString();
+  }
+
+  append(2500);
+  chat.scrollTop = chat.scrollHeight;
+
+  document.getElementById('top').onclick = function () { chat.scrollTo({ top: 0 }); };
+  document.getElementById('bottom').onclick = function () { chat.scrollTo({ top: chat.scrollHeight }); };
+  document.getElementById('more').onclick = function () { append(500); };
+  document.getElementById('stress').onclick = function () {
+    // Rapid up/down to expose scroll jank when everything is rendered.
+    var y = 0, dir = 1, steps = 0;
+    var h = chat.scrollHeight;
+    var iv = setInterval(function () {
+      y += dir * h / 40;
+      if (y >= h) dir = -1;
+      if (y <= 0 && dir === -1) { clearInterval(iv); return; }
+      chat.scrollTop = y;
+      if (++steps > 200) clearInterval(iv);
+    }, 16);
+  };
+
+  // FPS meter
+  var frames = 0, last = performance.now();
+  function loop(now) {
+    frames++;
+    if (now - last >= 500) {
+      document.getElementById('fps').textContent = Math.round(frames * 1000 / (now - last));
+      frames = 0; last = now;
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // Detect whether the LagClear extension is active on this page.
+  var banner = document.getElementById('banner');
+  setInterval(function () {
+    var on = !!document.querySelector('.lagclear-cull');
+    if (on) {
+      var n = document.querySelectorAll('.lagclear-cull').length;
+      banner.className = 'banner on';
+      banner.textContent = 'LagClear: ACTIVE ✓ - virtualizing ' + n.toLocaleString() +
+        ' off-screen messages. Scroll around: it should stay smooth.';
+    } else {
+      banner.className = 'banner off';
+      banner.textContent = 'LagClear: inactive - load the extension and reload to compare. ' +
+        'Right now all messages are fully rendered (watch the FPS during "Stress scroll").';
+    }
+  }, 1000);
+})();
+</script>
+</body>
+</html>

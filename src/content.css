@@ -1,0 +1,26 @@
+/*
+ * LagClear - content.css
+ *
+ * CPU mode: `content-visibility: auto` lets the browser skip layout, paint and
+ * hit-testing for a chat turn while it is off-screen; `contain-intrinsic-size:
+ * auto <h>` reserves space so the scrollbar stays stable, and the `auto`
+ * keyword makes the browser remember each turn's real size after rendering it
+ * once (prevents scroll jumps).
+ *
+ * RAM mode: `.lagclear-collapsed` marks a turn whose contents have been
+ * detached; an inline height holds its space, and `contain`/`overflow` keep the
+ * now-empty box cheap.
+ *
+ * These rules only take effect on elements the engine tags at runtime, so an
+ * inactive page is completely untouched.
+ */
+
+.lagclear-cull {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--lagclear-cis, 600px);
+}
+
+.lagclear-collapsed {
+  contain: layout;
+  overflow: hidden;
+}
